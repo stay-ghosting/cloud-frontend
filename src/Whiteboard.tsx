@@ -21,17 +21,17 @@ const Whiteboard = () => {
       console.log(JSON.stringify(data.elements));
       console.log("**************");
       console.log(JSON.stringify(elementsRef));
-      
+
       const sortedDataElements = JSON.stringify(data.elements.map(el => {
         const { updated, ...rest } = el;
         return rest;
       }).sort((a, b) => a.id.localeCompare(b.id)));
-      
+
       const sortedElements = JSON.stringify(elementsRef.current.map(el => {
         const { updated, ...rest } = el;
         return rest;
       }).sort((a, b) => a.id.localeCompare(b.id)));
-      
+
       if (excalidrawAPI) {
         if (sortedDataElements !== sortedElements) {
           console.log(false);
@@ -59,7 +59,7 @@ const Whiteboard = () => {
     console.log(elementsNotChanged)
 
     if (elementsNotChanged) {
-      return  
+      return
     }
 
     setElements(Array.from(updatedElements));
@@ -67,11 +67,11 @@ const Whiteboard = () => {
     if (socket.current) {
       socket.current.emit("update-canvas", {
         elements: updatedElements,
-        collaborators: [
-          { id: 1, name: "John Doe" },
-          { id: 2, name: "Jane Smith" },
-          { id: 3, name: "Sam Wilson" },
-        ],
+        // collaborators: [
+        //   { id: 1, name: "John Doe" },
+        //   { id: 2, name: "Jane Smith" },
+        //   { id: 3, name: "Sam Wilson" },
+        // ],
       });
     }
   };
