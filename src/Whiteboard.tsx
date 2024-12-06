@@ -7,21 +7,43 @@ import { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 const Whiteboard = () => {
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
   const [elements, setElements] = useState<ExcalidrawElement[]>([]);
-  const [appState, setAppState] = useState<AppState>();
+  const elementsRef = useRef(elements)
   const socket = useRef<Socket | null>(null);
+
+  useEffect(() => {
+    elementsRef.current = elements
+  }, [elements]);
 
   useEffect(() => {
     socket.current = io("http://localhost:3001");
 
     socket.current.on("update-canvas", (data) => {
-      console.log(typeof excalidrawAPI);
-
+      console.log(JSON.stringify(data.elements));
+      console.log("**************");
+      console.log(JSON.stringify(elementsRef));
+      
+      const sortedDataElements = JSON.stringify(data.elements.map(el => {
+        const { updated, ...rest } = el;
+        return rest;
+      }).sort((a, b) => a.id.localeCompare(b.id)));
+      
+      const sortedElements = JSON.stringify(elementsRef.current.map(el => {
+        const { updated, ...rest } = el;
+        return rest;
+      }).sort((a, b) => a.id.localeCompare(b.id)));
+      
       if (excalidrawAPI) {
-        excalidrawAPI.updateScene({
-          elements: data.elements,
-          // appState: data.appState,
-          collaborators: data.collaborators
-        });
+        if (sortedDataElements !== sortedElements) {
+          console.log(false);
+
+          setElements(data.elements);
+
+          excalidrawAPI.updateScene({
+            elements: data.elements,
+            // appState: data.appState,
+            collaborators: data.collaborators
+          });
+        }
       }
     });
 
@@ -32,22 +54,19 @@ const Whiteboard = () => {
     };
   }, [excalidrawAPI]);
 
-  const handleChange = (updatedElements: readonly ExcalidrawElement[], updatedAppState: AppState) => {
-    const elementsChanged = JSON.stringify(elements) !== JSON.stringify(updatedElements);
-    const appStateChanged = JSON.stringify(appState) !== JSON.stringify(updatedAppState);
+  const handleChange = (updatedElements: readonly ExcalidrawElement[]) => {
+    const elementsNotChanged = JSON.stringify(elements) === JSON.stringify(updatedElements);
+    console.log(elementsNotChanged)
 
-    if (elementsChanged) {
-      setElements(Array.from(updatedElements));
+    if (elementsNotChanged) {
+      return  
     }
 
-    if (appStateChanged) {
-      setAppState(updatedAppState);
-    }
+    setElements(Array.from(updatedElements));
 
     if (socket.current) {
       socket.current.emit("update-canvas", {
         elements: updatedElements,
-        appState: updatedAppState,
         collaborators: [
           { id: 1, name: "John Doe" },
           { id: 2, name: "Jane Smith" },
@@ -61,9 +80,9 @@ const Whiteboard = () => {
     <div style={{ height: "800px", width: "800px" }}>
       <h1>Whiteboard</h1>
       <Excalidraw
-        excalidrawAPI={(api) => setExcalidrawAPI(api)}
-        onChange={(updatedElements, updatedAppState) => handleChange(updatedElements, updatedAppState)}
-        initialData={{ elements, appState }}
+        excalidrawAPI={setExcalidrawAPI}
+        onChange={(updatedElements) => handleChange(updatedElements)}
+        initialData={{ elements }}
       />
     </div>
   );
