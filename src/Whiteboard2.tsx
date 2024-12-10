@@ -1,7 +1,5 @@
 // TODO
-// in handleChange only send the dif
 // fix resizing only one can do it
-// initialise with canvas data
 
 import { useCallback, useEffect, useRef } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
@@ -14,11 +12,12 @@ const Whiteboard = () => {
   const elementsRef = useRef<ExcalidrawElement[]>([]);
   const socket = useRef<Socket | null>(null);
 
-  
+
   useEffect(() => {
     socket.current = io("http://localhost:3001");
 
-    socket.current.on("update-canvas", updateCanvas);
+    socket.current.once("update-canvas", updateCanvas);
+    socket.current.on("initialise-canvas", updateCanvas);
 
     return () => {
       if (socket.current) {
