@@ -3,7 +3,7 @@
 // fix resizing only one can do it
 // initialise with canvas data
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import { io, Socket } from "socket.io-client";
 import { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
@@ -11,82 +11,73 @@ import { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 
 const Whiteboard = () => {
   const excalidrawAPIRef = useRef<ExcalidrawImperativeAPI | null>(null);
-  const elementsRef = useRef<ExcalidrawElement[]>([])
+  const elementsRef = useRef<ExcalidrawElement[]>([]);
   const socket = useRef<Socket | null>(null);
 
+  
   useEffect(() => {
-    
     socket.current = io("http://localhost:3001");
 
     socket.current.on("update-canvas", updateCanvas);
 
     return () => {
-    console.log("Ranx");
       if (socket.current) {
         socket.current.disconnect();
       }
     };
   }, []);
 
-  const updateCanvas = (data: any) => {
-    const sortedDataElements = JSON.stringify(data.elements.map((el: ExcalidrawElement) => {
-      const { updated, ...rest } = el;
-      return rest;
-    }).sort((a, b) => a.id.localeCompare(b.id)));
-
-    const sortedElements = JSON.stringify(elementsRef.current.map(el => {
-      const { updated, ...rest } = el;
-      return rest;
-    }).sort((a, b) => a.id.localeCompare(b.id)));
-
-    if (excalidrawAPIRef.current) {
-      if (sortedDataElements !== sortedElements) {
-        console.log("ran**")
-
-        elementsRef.current = data.elements;
-
-        excalidrawAPIRef.current.updateScene({
-          elements: data.elements
-        });
-      }
+  /* update canvas to match new canvas data */
+  const updateCanvas = (canvasData: { elements: ExcalidrawElement[] }) => {
+    // check we have a canvas
+    if (!excalidrawAPIRef.current) {
+      return;
     }
-  }
 
-  const handleChange = (updatedElements: readonly ExcalidrawElement[]) => {
+    // check that the update contains a difference
+    const updatedElements = canvasData.elements;
+
+    const updatedElementsJSON = JSON.stringify(updatedElements);
+    const currentElementsJSON = JSON.stringify(elementsRef.current);
+
+    if (updatedElementsJSON === currentElementsJSON) {
+      return;
+    }
+
+    // make updates
+    elementsRef.current = updatedElements;
+
+    excalidrawAPIRef.current.updateScene({
+      elements: updatedElements,
+    });
+  };
+
+  /* emit an event if canvas has an update */
+  const handleChange = useCallback((updatedElements: readonly ExcalidrawElement[]) => {
     // check if elements have changed
-    let elementsHaveChanged = false
-
-    if (updatedElements.length !== elementsRef.current.length) {
-      elementsHaveChanged = true
-    } else {
-      for (let index = 0; index < updatedElements.length; index++) {
-        if (JSON.stringify(updatedElements[index]) !== JSON.stringify(elementsRef.current[index])) {
-          elementsHaveChanged = true
-          break
-        }
-      }
-    }
+    let elementsHaveChanged =
+      updatedElements.length !== elementsRef.current.length || 
+      updatedElements.some((element, index) => JSON.stringify(element) !== JSON.stringify(elementsRef.current[index]));
 
     if (!elementsHaveChanged) {
-      return
+      return;
     }
 
-    console.log("ran*")
-    elementsRef.current = (JSON.parse(JSON.stringify(updatedElements)));
-
+    // update the state
+    elementsRef.current = JSON.parse(JSON.stringify(updatedElements));
+    // emit an event
     if (socket.current) {
       socket.current.emit("update-canvas", {
-        elements: updatedElements
+        elements: updatedElements,
       });
     }
-  };
+  }, []);
 
   return (
     <div style={{ height: "100vh", width: "100vw" }}>
-      <Excalidraw
-        excalidrawAPI={(excalidrawAPI) => excalidrawAPIRef.current = excalidrawAPI}
-        onChange={handleChange}
-        initialData={{ elements: elementsRef.current }} />
+      <Excalidraw 
+        excalidrawAPI={(excalidrawAPI) => (excalidrawAPIRef.current = excalidrawAPI)} 
+        onChange={handleChange} />
     </div>
   );
 };
