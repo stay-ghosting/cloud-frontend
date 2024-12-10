@@ -3,28 +3,30 @@
 // fix resizing only one can do it
 // initialise with canvas data
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import { io, Socket } from "socket.io-client";
 import { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
 import { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 
 const Whiteboard = () => {
-  const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
+  const excalidrawAPIRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const elementsRef = useRef<ExcalidrawElement[]>([])
   const socket = useRef<Socket | null>(null);
 
   useEffect(() => {
+    
     socket.current = io("http://localhost:3001");
 
     socket.current.on("update-canvas", updateCanvas);
 
     return () => {
+    console.log("Ranx");
       if (socket.current) {
         socket.current.disconnect();
       }
     };
-  }, [excalidrawAPI]);
+  }, []);
 
   const updateCanvas = (data: any) => {
     const sortedDataElements = JSON.stringify(data.elements.map((el: ExcalidrawElement) => {
@@ -37,13 +39,13 @@ const Whiteboard = () => {
       return rest;
     }).sort((a, b) => a.id.localeCompare(b.id)));
 
-    if (excalidrawAPI) {
+    if (excalidrawAPIRef.current) {
       if (sortedDataElements !== sortedElements) {
         console.log("ran**")
 
         elementsRef.current = data.elements;
 
-        excalidrawAPI.updateScene({
+        excalidrawAPIRef.current.updateScene({
           elements: data.elements
         });
       }
@@ -82,8 +84,8 @@ const Whiteboard = () => {
   return (
     <div style={{ height: "100vh", width: "100vw" }}>
       <Excalidraw
-        excalidrawAPI={setExcalidrawAPI}
-        onChange={(updatedElements) => handleChange(updatedElements)}
+        excalidrawAPI={(excalidrawAPI) => excalidrawAPIRef.current = excalidrawAPI}
+        onChange={handleChange}
         initialData={{ elements: elementsRef.current }} />
     </div>
   );
