@@ -11,13 +11,8 @@ import { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 
 const Whiteboard = () => {
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
-  const [elements, setElements] = useState<ExcalidrawElement[]>([]);
-  const elementsRef = useRef(elements)
+  const elementsRef = useRef<ExcalidrawElement[]>([])
   const socket = useRef<Socket | null>(null);
-
-  useEffect(() => {
-    elementsRef.current = elements
-  }, [elements]);
 
   useEffect(() => {
     socket.current = io("http://localhost:3001");
@@ -46,7 +41,7 @@ const Whiteboard = () => {
       if (sortedDataElements !== sortedElements) {
         console.log("ran**")
 
-        setElements(data.elements);
+        elementsRef.current = data.elements;
 
         excalidrawAPI.updateScene({
           elements: data.elements
@@ -59,11 +54,11 @@ const Whiteboard = () => {
     // check if elements have changed
     let elementsHaveChanged = false
 
-    if (updatedElements.length !== elements.length) {
+    if (updatedElements.length !== elementsRef.current.length) {
       elementsHaveChanged = true
     } else {
       for (let index = 0; index < updatedElements.length; index++) {
-        if (JSON.stringify(updatedElements[index]) !== JSON.stringify(elements[index])) {
+        if (JSON.stringify(updatedElements[index]) !== JSON.stringify(elementsRef.current[index])) {
           elementsHaveChanged = true
           break
         }
@@ -75,7 +70,7 @@ const Whiteboard = () => {
     }
 
     console.log("ran*")
-    setElements(JSON.parse(JSON.stringify(updatedElements)));
+    elementsRef.current = (JSON.parse(JSON.stringify(updatedElements)));
 
     if (socket.current) {
       socket.current.emit("update-canvas", {
@@ -89,7 +84,7 @@ const Whiteboard = () => {
       <Excalidraw
         excalidrawAPI={setExcalidrawAPI}
         onChange={(updatedElements) => handleChange(updatedElements)}
-        initialData={{ elements }} />
+        initialData={{ elements: elementsRef.current }} />
     </div>
   );
 };

@@ -1,110 +1,90 @@
 // TODO
 // in handleChange only send the dif
+// fix resizing only one can do it
+// initialise with canvas data
 
 import { useEffect, useRef, useState } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import { io, Socket } from "socket.io-client";
-import { AppState, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
+import { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
 import { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 
 const Whiteboard = () => {
+  const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
+  const elementsRef = useRef<ExcalidrawElement[]>([])
+  const socket = useRef<Socket | null>(null);
 
+  useEffect(() => {
+    socket.current = io("http://localhost:3001");
 
-  // useEffect(() => {
-  //   socket.current = io("http://localhost:3001");
+    socket.current.on("update-canvas", updateCanvas);
 
-  //   socket.current.on("update-canvas", updateCanvas);
+    return () => {
+      if (socket.current) {
+        socket.current.disconnect();
+      }
+    };
+  }, [excalidrawAPI]);
 
-  //   return () => {
-  //     if (socket.current) {
-  //       socket.current.disconnect();
-  //     }
-  //   };
-  // }, [excalidrawAPI]);
+  const updateCanvas = (data: any) => {
+    const sortedDataElements = JSON.stringify(data.elements.map((el: ExcalidrawElement) => {
+      const { updated, ...rest } = el;
+      return rest;
+    }).sort((a, b) => a.id.localeCompare(b.id)));
 
-  // const updateCanvas = (data: any) => {
-  //   const sortedDataElements = JSON.stringify(data.elements.map((el: ExcalidrawElement) => {
-  //     const { updated, ...rest } = el;
-  //     return rest;
-  //   }).sort((a, b) => a.id.localeCompare(b.id)));
+    const sortedElements = JSON.stringify(elementsRef.current.map(el => {
+      const { updated, ...rest } = el;
+      return rest;
+    }).sort((a, b) => a.id.localeCompare(b.id)));
 
-  //   const sortedElements = JSON.stringify(elementData.current.map(el => {
-  //     const { updated, ...rest } = el;
-  //     return rest;
-  //   }).sort((a, b) => a.id.localeCompare(b.id)));
+    if (excalidrawAPI) {
+      if (sortedDataElements !== sortedElements) {
+        console.log("ran**")
 
-  //   if (excalidrawAPI) {
-  //     if (sortedDataElements !== sortedElements) {
-  //       console.log("ran**")
+        elementsRef.current = data.elements;
 
-  //       elementData.current = data.elements;
-
-  //       excalidrawAPI.updateScene({
-  //         elements: data.elements,
-  //         // appState: data.appState,
-  //         collaborators: data.collaborators
-  //       });
-  //     }
-  //   }
-  // }
-
-  const elementData = useRef<ExcalidrawElement[]>([])
-  const elementData2 = useRef<ExcalidrawElement[]>([])
+        excalidrawAPI.updateScene({
+          elements: data.elements
+        });
+      }
+    }
+  }
 
   const handleChange = (updatedElements: readonly ExcalidrawElement[]) => {
-    // console.log(JSON.stringify(elementData));
+    // check if elements have changed
+    let elementsHaveChanged = false
 
-    // if (JSON.stringify(Array.from(updatedElements)[0]) !== JSON.stringify(elementData2.current[0])) {
-    //   console.log(true);
-    // }
-
-    if (JSON.stringify(elementData.current[0]) !== JSON.stringify(updatedElements[0])) {
-      console.log(true);
+    if (updatedElements.length !== elementsRef.current.length) {
+      elementsHaveChanged = true
+    } else {
+      for (let index = 0; index < updatedElements.length; index++) {
+        if (JSON.stringify(updatedElements[index]) !== JSON.stringify(elementsRef.current[index])) {
+          elementsHaveChanged = true
+          break
+        }
+      }
     }
 
-    elementData.current = JSON.parse(JSON.stringify([...updatedElements]));
+    if (!elementsHaveChanged) {
+      return
+    }
 
-    // let elementsHaveChanged = false
+    console.log("ran*")
+    elementsRef.current = (JSON.parse(JSON.stringify(updatedElements)));
 
-    // if (updatedElements.length !== elementData.current.length) {
-    //   elementsHaveChanged = true
-    // } else {
-    //   for (let index = 0; index < updatedElements.length; index++) {
-    //     // console.log(
-    //     //   JSON.stringify(updatedElements[index]), "***", JSON.stringify(elementData.current[index])
-    //     // );
-
-    //     if (JSON.stringify(updatedElements[index]) !== JSON.stringify(elementData.current[index])) {
-    //       elementsHaveChanged = true
-    //       break
-    //     }
-    //   }
-    // }
-
-    // if (!elementsHaveChanged) {
-    //   return
-    // }
-
-    // console.log("ran*")
-
-
-    // elementData.current = Array.from(updatedElements);
-
-    // if (socket.current) {
-    //   socket.current.emit("update-canvas", {
-    //     elements: updatedElements
-    //   });
-    // }
+    if (socket.current) {
+      socket.current.emit("update-canvas", {
+        elements: updatedElements
+      });
+    }
   };
 
   return (
-    <div style={{ height: "800px", width: "800px" }}>
-      <h1>Whiteboard</h1>
+    <div style={{ height: "100vh", width: "100vw" }}>
       <Excalidraw
-        onChange={handleChange}
-
-      // initialData={{ elements: elementData.current }}
-      />
+        excalidrawAPI={setExcalidrawAPI}
+        onChange={(updatedElements) => handleChange(updatedElements)}
+        initialData={{ elements: elementsRef.current }} />
     </div>
   );
 };
