@@ -1,7 +1,7 @@
 // TODO
 // fix resizing only one can do it
 
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import { io, Socket } from "socket.io-client";
 import { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
@@ -21,12 +21,15 @@ const Whiteboard = () => {
 
     return () => {
       if (socket.current) {
+        socket.current.off("update-canvas", updateCanvas);
         socket.current.disconnect();
       }
     };
   }, []);
 
-  /* update canvas to match new canvas data */
+  /* 
+          update canvas to match new canvas data 
+  */
   const updateCanvas = (canvasData: { elements: ExcalidrawElement[] }) => {
     // check we have a canvas
     if (!excalidrawAPIRef.current) {
@@ -51,7 +54,9 @@ const Whiteboard = () => {
     });
   };
 
-  /* emit an event if canvas has an update */
+  /* 
+          emit an event if canvas has an update 
+  */
   const handleChange = (updatedElements: readonly ExcalidrawElement[]) => {
     
     // check if elements have changed
@@ -67,7 +72,6 @@ const Whiteboard = () => {
     elementsRef.current = JSON.parse(JSON.stringify(updatedElements));
     // emit an event
     if (socket.current) {
-      console.log("ran");
       socket.current.emit("update-canvas", {
         elements: updatedElements,
       });
