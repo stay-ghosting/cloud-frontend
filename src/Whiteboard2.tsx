@@ -16,8 +16,8 @@ const Whiteboard = () => {
   useEffect(() => {
     socket.current = io("http://localhost:3001");
 
-    socket.current.once("update-canvas", updateCanvas);
-    socket.current.on("initialise-canvas", updateCanvas);
+    socket.current.once("initialise-canvas", updateCanvas);
+    socket.current.on("update-canvas", updateCanvas);
 
     return () => {
       if (socket.current) {
@@ -52,25 +52,27 @@ const Whiteboard = () => {
   };
 
   /* emit an event if canvas has an update */
-  const handleChange = useCallback((updatedElements: readonly ExcalidrawElement[]) => {
+  const handleChange = (updatedElements: readonly ExcalidrawElement[]) => {
+    
     // check if elements have changed
     let elementsHaveChanged =
-      updatedElements.length !== elementsRef.current.length || 
-      updatedElements.some((element, index) => JSON.stringify(element) !== JSON.stringify(elementsRef.current[index]));
-
+    updatedElements.length !== elementsRef.current.length || 
+    updatedElements.some((element, index) => JSON.stringify(element) !== JSON.stringify(elementsRef.current[index]));
+    
     if (!elementsHaveChanged) {
       return;
     }
-
+    
     // update the state
     elementsRef.current = JSON.parse(JSON.stringify(updatedElements));
     // emit an event
     if (socket.current) {
+      console.log("ran");
       socket.current.emit("update-canvas", {
         elements: updatedElements,
       });
     }
-  }, []);
+  };
 
   return (
     <div style={{ height: "100vh", width: "100vw" }}>
