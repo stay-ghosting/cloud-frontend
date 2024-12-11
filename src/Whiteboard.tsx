@@ -1,5 +1,7 @@
 // TODO
 // fix resizing only one can do it
+// crash when starting with no elements
+// do partial updates
 
 import { useEffect, useRef } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
@@ -21,36 +23,24 @@ const Whiteboard = () => {
     socket.current.on("update-canvas", updateCanvas);
 
     return () => {
-      if (socket.current) {
-        socket.current.off("update-canvas", updateCanvas);
-        socket.current.disconnect();
-      }
+      socket.current?.off("update-canvas", updateCanvas);
+      socket.current?.disconnect();
     };
   }, []);
 
   /* 
           update canvas to match new canvas data 
   */
-  const updateCanvas = (canvasData: { elements: ExcalidrawElement[], authorClientId: string }) => {
-    // check we have a canvas
-    if (!excalidrawAPIRef.current || clientId.current === canvasData.authorClientId) {
+  const updateCanvas = (canvasData: { updatedElements: ExcalidrawElement[], authorClientId: string }) => {
+    const { updatedElements, authorClientId } = canvasData
+    // check the update came from somewhere else
+    if (clientId.current === authorClientId) {
       return;
     }
-
-    // check that the update contains a difference
-    const updatedElements = canvasData.elements;
-
-    const updatedElementsJSON = JSON.stringify(updatedElements);
-    const currentElementsJSON = JSON.stringify(elementsRef.current);
-
-    if (updatedElementsJSON === currentElementsJSON) {
-      return;
-    }
-
-    // make updates
+    // update state
     elementsRef.current = updatedElements;
-
-    excalidrawAPIRef.current.updateScene({
+    // update canvas
+    excalidrawAPIRef.current?.updateScene({
       elements: updatedElements,
     });
   };
@@ -72,12 +62,10 @@ const Whiteboard = () => {
     // update the state
     elementsRef.current = JSON.parse(JSON.stringify(updatedElements));
     // emit an event
-    if (socket.current) {
-      socket.current.emit("update-canvas", {
-        elements: updatedElements,
-        authorClientId: clientId.current
-      });
-    }
+    socket.current?.emit("update-canvas", {
+      updatedElements,
+      authorClientId: clientId.current
+    });
   };
 
   return (
