@@ -1,8 +1,3 @@
-// TODO
-// fix resizing only one can do it
-// crash when starting with no elements
-// do partial updates
-
 import { useEffect, useRef } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import { io, Socket } from "socket.io-client";
