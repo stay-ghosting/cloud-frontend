@@ -6,12 +6,13 @@ import { Excalidraw } from "@excalidraw/excalidraw";
 import { io, Socket } from "socket.io-client";
 import { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
 import { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
+import { v4 as uuidv4 } from "uuid";
 
 const Whiteboard = () => {
   const excalidrawAPIRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const elementsRef = useRef<ExcalidrawElement[]>([]);
   const socket = useRef<Socket | null>(null);
-
+  const clientId = useRef(uuidv4());
 
   useEffect(() => {
     socket.current = io("http://localhost:3001");
@@ -30,9 +31,9 @@ const Whiteboard = () => {
   /* 
           update canvas to match new canvas data 
   */
-  const updateCanvas = (canvasData: { elements: ExcalidrawElement[] }) => {
+  const updateCanvas = (canvasData: { elements: ExcalidrawElement[], authorClientId: string }) => {
     // check we have a canvas
-    if (!excalidrawAPIRef.current) {
+    if (!excalidrawAPIRef.current || clientId.current === canvasData.authorClientId) {
       return;
     }
 
@@ -58,30 +59,31 @@ const Whiteboard = () => {
           emit an event if canvas has an update 
   */
   const handleChange = (updatedElements: readonly ExcalidrawElement[]) => {
-    
+
     // check if elements have changed
     let elementsHaveChanged =
-    updatedElements.length !== elementsRef.current.length || 
-    updatedElements.some((element, index) => JSON.stringify(element) !== JSON.stringify(elementsRef.current[index]));
-    
+      updatedElements.length !== elementsRef.current.length ||
+      updatedElements.some((element, index) => JSON.stringify(element) !== JSON.stringify(elementsRef.current[index]));
+
     if (!elementsHaveChanged) {
       return;
     }
-    
+
     // update the state
     elementsRef.current = JSON.parse(JSON.stringify(updatedElements));
     // emit an event
     if (socket.current) {
       socket.current.emit("update-canvas", {
         elements: updatedElements,
+        authorClientId: clientId.current
       });
     }
   };
 
   return (
     <div style={{ height: "100vh", width: "100vw" }}>
-      <Excalidraw 
-        excalidrawAPI={(excalidrawAPI) => (excalidrawAPIRef.current = excalidrawAPI)} 
+      <Excalidraw
+        excalidrawAPI={(excalidrawAPI) => (excalidrawAPIRef.current = excalidrawAPI)}
         onChange={handleChange} />
     </div>
   );
